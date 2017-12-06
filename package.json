@@ -1,0 +1,33 @@
+{
+  "name": "wasp.io",
+  "version": "1.0.0",
+  "description": "Voice call app",
+  "main": "index.js",
+  "scripts": {
+    "test": "echo \"Error: no test specified\" && exit 1",
+    "start": "node index.js"
+  },
+  "repository": {
+    "type": "git",
+    "url": "git+https://github.com/pozymasika/wasp.io.git"
+  },
+  "keywords": [
+    "webrtc",
+    "rtc",
+    "voice",
+    "call",
+    "chat",
+    "js",
+    "node"
+  ],
+  "author": "Polycarp Masika",
+  "license": "MIT",
+  "bugs": {
+    "url": "https://github.com/pozymasika/wasp.io/issues"
+  },
+  "homepage": "https://github.com/pozymasika/wasp.io#readme",
+  "dependencies": {
+    "express": "^4.16.2",
+    "socketio": "^1.0.0"
+  }
+}
