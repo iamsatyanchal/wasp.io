@@ -1,0 +1,19 @@
+{
+    "compileOnSave": false,
+    "compilerOptions": {
+        "target": "es5",
+        "module": "amd",
+        "noImplicitAny": false,
+        "removeComments": true,
+        "noEmitOnError": false,
+        "noLib": false,
+        "jsx": "react",
+        "outFile": "app.js",
+        "allowUnusedLabels": true,
+        "allowUnreachableCode": true,
+        "allowSyntheticDefaultImports": true,
+        "sourceMap": false,
+        "moduleResolution": "node"
+    },
+    "exclude": ["node_modules"]
+}

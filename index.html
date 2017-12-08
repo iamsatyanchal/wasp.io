@@ -1,0 +1,25 @@
+<!DOCTYPE html>
+<html>
+    <head>
+        <title>Wasp</title>
+    </head>
+    <body>
+        <div id="page-container">
+
+        </div>
+        <script type="text/javascript" src="./node_modules/jquery/dist/jquery.min.js"></script>
+        <script type="text/javascript" data-main="./app" src="./node_modules/requirejs/require.js"></script>
+        <script type="text/javascript" src="./lib/requirejs-config.js"></script>
+        <script type="text/javascript">
+            $(function () {
+               //
+               require(['react', 'react-dom'], function(React, ReactDOM) {
+                    window.react = React;
+                    window.ReactDOM = ReactDOM;
+                    // start our app
+                    require(['app']);
+               });
+            });
+        </script>
+    </body>
+</html>
