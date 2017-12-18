@@ -2,6 +2,9 @@
 <html>
     <head>
         <title>Wasp</title>
+        <link rel="stylesheet" type="text/css" href="./node_modules/semantic-ui-css/semantic.min.css" />
+        <link rel="stylesheet" type="text/css" href="./css/animate.css"/>
+        <link rel="stylesheet" type="text/css" href="./css/app.css"/>
     </head>
     <body>
         <div id="page-container">
@@ -13,8 +16,8 @@
         <script type="text/javascript">
             $(function () {
                //
-               require(['react', 'react-dom'], function(React, ReactDOM) {
-                    window.react = React;
+               require(['react', 'react-dom', "semantic-ui-react"], function(React, ReactDOM, ui) {
+                    window.React = React;
                     window.ReactDOM = ReactDOM;
                     // start our app
                     require(['app']);
