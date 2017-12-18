@@ -34,6 +34,7 @@
     "@types/react-router": "^4.0.19",
     "@types/react-router-redux": "^5.0.10",
     "@types/redux": "^3.6.0",
+    "@types/redux-thunk": "^2.1.0",
     "express": "^4.16.2",
     "jquery": "^3.2.1",
     "lodash": "^4.17.4",
@@ -43,8 +44,12 @@
     "react-router": "^4.2.0",
     "react-router-redux": "^4.0.8",
     "redux": "^3.7.2",
+    "redux-thunk": "^2.2.0",
+    "semantic-ui-css": "^2.2.12",
+    "semantic-ui-react": "^0.77.1",
     "socketio": "^1.0.0",
-    "typescript": "^2.6.2"
+    "typescript": "^2.6.2",
+    "uuid": "^3.1.0"
   },
   "devDependencies": {
     "@types/react": "^16.0.27"
