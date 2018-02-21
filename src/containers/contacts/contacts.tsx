@@ -6,24 +6,29 @@ import { push } from "react-router-redux";
 import * as _ from "lodash";
 import * as uuid from "uuid/v1";
 import { OutgoingCallModal } from "./outgoing-call-modal";
+import { socketIOActionCreators } from "../../redux/actions/socketio";
 
+interface ContactsViewActions {
+    onCall: (from: WaspUser, to: Contacts.Contact ) => any;
+}
 interface ContactsViewProps {
-    login?: WaspUser;
+    user?: WaspUser;
+    actions?: ContactsViewActions;
 }
 
 interface ContactsViewState {
     calling?: boolean;
-    callingWho?: { name: string, id: string, date: string, image?: string };
+    callingWho?: Contacts.Contact;
 }
 
 const mapStateToProps = (state: ApplicationState, ownProps: ContactsViewProps) => {
-    return _.assign({}, ownProps, { login: state.login.user });
+    return _.assign({}, ownProps, { user: state.login.user });
 }
 
 const mapDispatchToProps = dispatch => {
     return {
         actions: bindActionCreators(
-            _.assign({}, { push }), dispatch),
+            _.assign({}, { push }, socketIOActionCreators), dispatch),
         dispatch
     }
 }
@@ -38,7 +43,10 @@ class ContactsView extends React.Component<ContactsViewProps, ContactsViewState>
         }
     }
 
-    initiateCall = (contact: { name: string, id: string, date: string, image?: string }) => (e?: any) => {
+    initiateCall = (contact: Contacts.Contact) => (e?: any) => {
+        const { actions, user} = this.props;
+        // send call request
+        actions.onCall(user, contact);
         this.setState({
             calling: true,
             callingWho: contact
@@ -68,20 +76,17 @@ class ContactsView extends React.Component<ContactsViewProps, ContactsViewState>
     }
 
     render() {
-        const { login: { email, name } } = this.props;
+        const { user: { email, name } } = this.props;
         const { calling, callingWho } = this.state;
-        const contacts: { name: string, id: string, date: string, image?: string }[] = [
-            { name: 'Polycarp Masika', id: uuid(), date: '1 day ago' },
-            { name: "John Lennon", id: uuid(), date: '2 days ago' },
-            { name: "Chris Martin", id: uuid(), date: '3 days ago' },
-            { name: "Sarah lee", id: uuid(), date: '4 days ago' },
-            { name: "Jullie Hyman", id: uuid(), date: '5 days ago' }
+        const contacts: Contacts.Contact[] = [
+            { name: 'Polycarp Masika', email: 'masikapolycarp@gmail.com', date: '1 day ago' },
+            { name: "Santa Beatrice", email: 'onyangobeatrice93@gmail.com', date: '2 days ago' },
         ]
         //
         const contactList: JSX.Element[] = [];
         _.map(contacts, (contact, index) => {
             contactList.push(
-                <Feed.Event key={contact.id}>
+                <Feed.Event key={index}>
                     <Feed.Label image={contact.image || '/img/avatar.png'} />
                     <Feed.Content>
                         <Feed.Date content={contact.date} />

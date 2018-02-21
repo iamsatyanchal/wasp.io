@@ -3,11 +3,17 @@ import { Card, Rail, Segment, Feed, Icon, Button, Image, Item } from "semantic-u
 import { OutgoingCallModal } from "./outgoing-call-modal";
 import { connect } from "react-redux";
 import { bindActionCreators } from "redux";
+import { socketIOActionCreators } from "../../redux/actions/socketio";
 import { push } from "react-router-redux";
 import * as _ from "lodash";
 
+interface IncomingCallActions {
+    onAcceptCall: () => any;
+}
 interface IncomingCallContainerViewProps {
     login?: WaspUser;
+    contact?: WaspUser;
+    actions?: IncomingCallActions;
 }
 
 interface IncomingCallContainerViewState {
@@ -22,7 +28,7 @@ const mapStateToProps = (state: ApplicationState, ownProps: IncomingCallContaine
 const mapDispatchToProps = dispatch => {
     return {
         actions: bindActionCreators(
-            _.assign({}, { push }), dispatch),
+            _.assign({}, socketIOActionCreators, { push }), dispatch),
         dispatch
     }
 }
@@ -69,6 +75,7 @@ class IncomingCallContainerView extends React.Component<IncomingCallContainerVie
 
     acceptCall = (e?) => {
         this.stopAudio();
+        this.props.actions.onAcceptCall();
         this.setState({
             callAccepted: true
         })
@@ -85,13 +92,10 @@ class IncomingCallContainerView extends React.Component<IncomingCallContainerVie
         const extra = (
             <span />
         );
-        const { login: { email, name } } = this.props;
+        const { login: { email, name }, contact } = this.props;
         const { callDeclined, callAccepted } = this.state;
         const defaultImage = '/img/avatar.png';
         const classNames = (callDeclined || callAccepted) ? "bounceOutRight" : "bounce incoming-call";
-        const contact: { name: string, id: string, date: string, image?: string } = {
-            name: 'Polycarp Masika', id: 'xx-ssd-fd-i', date: '1 day ago'
-        };
         return (
             <section>
                 {callAccepted && <OutgoingCallModal callConnected={true} contact={contact} open={true} onEndCall={this.onEndCall} />}
@@ -106,7 +110,7 @@ class IncomingCallContainerView extends React.Component<IncomingCallContainerVie
                                     <Image size='medium' src={defaultImage} />
                                 </Feed.Label>
                                 <Feed.Content>
-                                    <a>{_.startCase(_.toLower(name))}</a> is calling...
+                                    <a>{_.startCase(_.toLower(contact.name))}</a> is calling...
                                 </Feed.Content>
                                 <Feed.Extra>
                                     <Button color='green' circular size='small' onClick={this.acceptCall}>
