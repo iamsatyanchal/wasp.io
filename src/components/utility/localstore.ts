@@ -15,7 +15,6 @@ export const stateLoader = {
         }
     },
     save: (state) => {
-        console.log(state);
         try {
             let serializedState = JSON.stringify(state);
             localStorage.setItem(STATE_LOGIN, serializedState);

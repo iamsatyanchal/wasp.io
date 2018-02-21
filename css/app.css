@@ -22,9 +22,9 @@ body {
 }
 
 .incoming-call {
-    animation-iteration-count: infinite;
-    -moz-animation-iteration-count: infinite;
-    -webkit-animation-iteration-count: infinite;
+    animation-iteration-count: 5;
+    -moz-animation-iteration-count: 5;
+    -webkit-animation-iteration-count: 5;
 }
 
 .clickable {

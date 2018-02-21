@@ -5,20 +5,34 @@ import { bindActionCreators } from "redux";
 import { push } from "react-router-redux";
 import * as _ from "lodash";
 import * as uuid from "uuid/v1";
+import { logUtils } from "../../components/utility/log";
+import { socketIOActionCreators } from "../../redux/actions/socketio";
+import { isEdge, captureMicrophone } from "../../components/utility/index";
 
+interface OutgoingCallModalActions {
+    onCallAccepted?: () => void;
+    onCallEnded?: (contact: WaspUser) => any;
+    onSendAudioStream?: (contact: WaspUser, blob: Blob) => any;
+}
 interface OutgoingCallModalViewProps {
     login?: WaspUser;
     open: boolean;
     onEndCall: () => void;
-    contact: { name: string, id: string, date: string, image ?: string }
+    contact: WaspUser;
     callConnected?: boolean;
     soundDiv?: HTMLAudioElement;
+    actions?: OutgoingCallModalActions;
+
 }
 
 interface OutgoingCallModalViewState {
     open?: boolean;
     callConnected?: boolean;
     callDuration?: number;
+    rejectedPermissions?: boolean;
+    rejectedError?: any;
+    audioBuffers?: ArrayBuffer[];
+    nextTime?: number;
 }
 
 const mapStateToProps = (state: ApplicationState, ownProps: OutgoingCallModalViewProps) => {
@@ -28,39 +42,180 @@ const mapStateToProps = (state: ApplicationState, ownProps: OutgoingCallModalVie
 const mapDispatchToProps = dispatch => {
     return {
         actions: bindActionCreators(
-            _.assign({}, { push }), dispatch),
+            _.assign({}, socketIOActionCreators, { push }), dispatch),
         dispatch
     }
 }
 
 class OutgoingCallModalView extends React.Component<OutgoingCallModalViewProps, OutgoingCallModalViewState> {
+    /**
+     * Stores reference to call duration counting function. This makes it easy to stop counting by clearing
+     * this interval
+     */
     private callInterval: NodeJS.Timer;
+    /**
+     * Socket.IO client object
+     */
+    private io: SocketIO.Socket = (window as any).IOAudioClient;
+    /**
+     * Initialized RecordRTC window object
+     */
+    private recorder: RecordRTC;
+    /**
+     * Reference to the microphone returned by requesting getUserMedia
+     */
+    private microphone: any;
+    /**
+     * Stores refrence to audio streaming loop function. Destroy this when call ends.
+     */
+    private streamInterval: NodeJS.Timer;
+    /**
+     * How long (in milliseconds) to wait before sending streams
+     */
+    private sendStreamAfter: number = 250;
+    private audioContext: AudioContext = new ((window as any).AudioContext || (window as any).webkitAudioContext)();
     constructor(props) {
         super(props);
         this.state = {
             open: props.open || false,
             callConnected: props.callConnected || false,
-            callDuration: 0
+            callDuration: 0,
+            rejectedError: null,
+            rejectedPermissions: false,
+            audioBuffers: [],
+            nextTime: 0
         }
     }
 
     componentDidMount() {
-        // send socket request
-        setTimeout(() => {
-            this.setState({
-                callConnected: true,
-            });
-        }, 5000);
+        // socket io events
+        this.setUpEvents();
+        // If we receive a callConnected prop, this means that this is from the callee (one being called),
+        // start the call & start counting & streaming audio to them
+        if (this.props.callConnected && !this.callInterval) {
+            if (this.microphone) {
+                this.startCounting();
+                this.setupMediaStreamer();
+            } else {
+                captureMicrophone().then((mic) => {
+                    this.microphone = mic;
+                    this.startCounting();
+                    this.setupMediaStreamer();
+                }).catch((error) => {
+                    this.setState({
+                        rejectedError: error,
+                        rejectedPermissions: true
+                    });
+                    console.error(error);
+                });
+            }
+        }
     }
 
-    componentDidUpdate(nextProps: OutgoingCallModalViewProps, nextState: OutgoingCallModalViewState) {
-        if (this.state.callConnected && !this.callInterval) {
+    setupMediaStreamer = (contact?: WaspUser) => {
+        const options = {
+            type: 'audio',
+            // recorderType: StereoAudioRecorder,
+            numberOfAudioChannels: isEdge ? 1 : 2,
+            checkForInactiveTracks: true,
+            bufferSize: 16384,
+            timeSlice: this.sendStreamAfter // send this in 250ms chunks
+        } as any;
+        
+        if (navigator.platform && navigator.platform.toString().toLowerCase().indexOf('win') === -1) {
+            options.sampleRate = 48000; // or 44100 or remove this line for default
+        }
+
+        this.recorder = (window as any).RecordRTC(this.microphone, options);
+        this.recorder.startRecording();
+        this.startStreaming();
+    }
+
+    startStreaming = (target?: WaspUser) => {
+        const { actions, contact } = this.props;
+        const user = target || contact;
+        const streamInterval = setInterval(() => {
+            var internal = this.recorder.getInternalRecorder();
+            if (internal && typeof internal.getArrayOfBlobs === "function") {
+                var recorded = internal.getArrayOfBlobs();
+                var blob = new Blob(recorded, {
+                    type: 'audio/webm'
+                });
+                actions.onSendAudioStream(user, blob);
+                // recorder.clearRecordedData();
+            }
+        }, this.sendStreamAfter);
+
+        this.streamInterval = streamInterval;
+    }
+    // goes to this.state.audioBuffers and plays the most recent audio-clip
+    audioPlayerScraper = _.debounce(() => {
+        let { audioBuffers, nextTime } = this.state;
+        while (audioBuffers.length > 0) {
+            const buffer = audioBuffers.shift();
+            const source = this.audioContext.createBufferSource();
+            this.audioContext.decodeAudioData(buffer)
+                .then((audioBuff) => {
+                    source.buffer = audioBuff;
+                    source.connect(this.audioContext.destination);
+                    source.start(nextTime);
+                    nextTime = source.buffer.duration; // make the next buffer wait for the length of the previous buffer being
+                    this.setState({
+                        nextTime
+                    })
+                });
+        }
+    }, 250);
+
+    setUpEvents = () => {
+        const { actions } = this.props;
+        // These events are triggered by the person being called
+        this.io.on('call-accepted', (contact: WaspUser) => {
+            //
+            this.setState({
+                callConnected: true
+            });
             // end call sound
             this.stopCallSound();
             // start counting
-            console.log('starting call');
-            this.startCounting();
-        }
+            if (this.microphone) {
+                this.startCounting();
+                this.setupMediaStreamer(contact);
+            } else {
+                captureMicrophone().then((mic) => {
+                    this.microphone = mic;
+                    this.startCounting();
+                    this.setupMediaStreamer(contact);
+                    logUtils.logMessage('[SocketIO] Call has been accepted :' + JSON.stringify(contact), 'green');
+                }).catch((error) => {
+                    this.setState({
+                        rejectedError: error,
+                        rejectedPermissions: true
+                    });
+                    console.error(error);
+                });
+            }
+        });
+        //
+        this.io.on('call-ended', (contact) => {
+            this.setState({
+                callConnected: false,
+                open: false
+            });
+            logUtils.logMessage('[SocketIO] Call has been ended :' + JSON.stringify(contact), 'red');
+        });
+        //
+        this.io.on('audio-message', (blob: ArrayBuffer) => {
+            if (blob) {
+                const oldBuffers: ArrayBuffer[] = this.state.audioBuffers;
+                oldBuffers.push(blob);
+                this.setState({
+                    audioBuffers: oldBuffers
+                });
+                this.audioPlayerScraper();
+                logUtils.logMessage('[SocketIO] New audio stream :' + JSON.stringify(blob));
+            }
+        })
     }
 
     stopCallSound = () => {
@@ -71,8 +226,35 @@ class OutgoingCallModalView extends React.Component<OutgoingCallModalViewProps, 
         }
     }
 
+    shouldComponentUpdate(nextProps: OutgoingCallModalViewProps, nextState: OutgoingCallModalViewState) {
+        const {
+            open: stateOpen,
+            callConnected: stateConnected,
+            callDuration,
+            rejectedError,
+            rejectedPermissions
+        } = this.state;
+        const { login, open, contact, callConnected, soundDiv } = this.props;
+
+        return login !== nextProps.login ||
+            open !== nextProps.open ||
+            contact !== nextProps.contact ||
+            callConnected !== nextProps.callConnected ||
+            soundDiv !== nextProps.soundDiv ||
+            stateOpen !== nextState.open ||
+            stateConnected !== nextState.callConnected ||
+            callDuration !== nextState.callDuration ||
+            rejectedError !== nextState.rejectedError ||
+            rejectedPermissions !== nextState.rejectedPermissions
+    }
+
+    componentWillReceiveProps(nextProps: OutgoingCallModalViewProps, nextState: OutgoingCallModalViewState) {
+        console.table(nextState);
+    }
+
     componentWillUnmount() {
-        clearInterval(this.callInterval);
+       this.callInterval = null;
+       this.streamInterval = null;
     }
 
     startCounting = () => {
@@ -89,12 +271,14 @@ class OutgoingCallModalView extends React.Component<OutgoingCallModalViewProps, 
     close = () => this.setState({ open: false })
 
     endCall = () => {
-        this.props.onEndCall();
+        const { actions, contact, onEndCall} = this.props;
+        onEndCall();
         this.setState({
             open: false
         });
-        
-        clearInterval(this.callInterval);
+        this.streamInterval = null;
+        this.callInterval = null;
+        actions.onCallEnded(contact);
     }
 
     pad = (num) => {
@@ -140,7 +324,7 @@ class OutgoingCallModalView extends React.Component<OutgoingCallModalViewProps, 
                 centered
                 circular
                 size='small'
-                src={contact.image || defaultImage}
+                src={defaultImage}
                 />
                 <Header as='h2' textAlign='center'>
                     <Header.Content>

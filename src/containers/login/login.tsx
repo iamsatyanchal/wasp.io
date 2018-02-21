@@ -7,11 +7,13 @@ import { FormEvent, MouseEvent } from "react";
 import { connect } from "react-redux";
 import { bindActionCreators } from "redux";
 import { loginActionCreators } from "../../redux/actions/login";
+import { socketIOActionCreators } from "../../redux/actions/socketio";
 import { push } from "react-router-redux";
 import * as H from 'history';
 
 interface LoginActions {
     onLogin?: (user: WaspUser) => void;
+    onEstablishConnection?: (userId: string) => void;
     push?: (to?: string) => any;
 }
 
@@ -35,7 +37,7 @@ const mapStateToProps = (state: any, ownProps: LoginViewProps) => {
 const mapDispatchToProps = dispatch => {
     return {
         actions: bindActionCreators(
-            _.assign({}, { push }, loginActionCreators),
+            _.assign({}, { push }, loginActionCreators, socketIOActionCreators),
             dispatch
         ),
         dispatch,
@@ -69,6 +71,7 @@ class LoginView extends React.Component<LoginViewProps, LoginViewState> {
             loggedIn: true
         }
         this.props.actions.onLogin(user);
+        this.props.actions.onEstablishConnection(user.email);
         //
         this.props.actions.push('/dashboard');
         return false;

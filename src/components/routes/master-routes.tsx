@@ -10,7 +10,7 @@ import { bindActionCreators } from "redux";
 import { History } from "history";
 
 interface MasterRouterViewProps {
-    login?: WaspUser;
+    user?: WaspUser;
     history?: History;
 }
 
@@ -19,8 +19,8 @@ interface MasterRouterViewState {
 }
 
 const mapStateToProps = (state: ApplicationState, ownProps: MasterRouterViewProps) => {
-    const login = state.login;
-    return _.assign({}, ownProps, { login });
+    const user = state.login.user;
+    return _.assign({}, ownProps, { user });
 }
 
 const mapDispatchToProps = dispatch => {
@@ -34,21 +34,18 @@ class MasterRouterView extends React.Component<MasterRouterViewProps, MasterRout
         super(props);
     }
     render () {
-        const { history, login: {loggedIn}} = this.props;
-        const routes = !loggedIn ? (
+        const { history, user } = this.props;
+        const routes = (user && user.loggedIn) ? (
                 <main>
                     {/* not having a path means it always loads */}
                     <Route component={Header} />
                     <Switch>
-                        <Route component={Login} path='/login' />
-                        <Route component={MasterApp} path="/dashboard" render={() => (
-                            !loggedIn ? <Redirect to="/login" /> : null
-                        )} />
+                        <Route component={MasterApp} path='/dashboard' />
                     </Switch>
                 </main>
             )
             :
-            <Redirect to="/login" />;
+            <Route component={Login} />
         //
         return (
             <Router history={history}>
