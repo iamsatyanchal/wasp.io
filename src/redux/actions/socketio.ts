@@ -95,7 +95,7 @@ export const socketIOActionCreators = {
                 email: contact.email,
                 data: blob
             });
-            console.log('Fuck niggas on yo\' payroll!, but you knew \'em for a month tho\'', {
+            console.log({
                 email: contact.email,
                 data: blob
             })
